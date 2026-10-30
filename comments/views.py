@@ -18,19 +18,17 @@ def index(request):
 
 def analyze(request):
     company = request.GET.get('company_name', '').strip()
-
-    # F601: 입력값이 없으면 아무 동작도 하지 않음
     if not company:
         return redirect('comments:index')
 
-    print(company)   # F601: VS Code 터미널 출력
+    print(company)   
 
     try:
-        stock_name, raw = crawl_comments(company)          # F603, F604
-    except CompanyNotFound:                                # F611
+        stock_name, raw = crawl_comments(company)        
+    except CompanyNotFound:                           
         return render(request, 'comments/index.html', {
             'error': f"'{company}'에 해당하는 회사를 찾을 수 없습니다."})
-    except NoComments:                                     # F611
+    except NoComments:                                  
         return render(request, 'comments/index.html', {
             'error': '해당 종목의 커뮤니티 댓글이 없습니다.'})
     except Exception:
@@ -40,27 +38,27 @@ def analyze(request):
 
     try:
         iqr_info = calc_iqr(raw)
-        cleaned = llm.filter_inappropriate(rule_based_clean(raw))   # F605
-        augmented = llm.augment(cleaned)                            # F606
+        cleaned = llm.filter_inappropriate(rule_based_clean(raw))   
+        augmented = llm.augment(cleaned)                           
     except Exception:
         logger.exception('LLM 처리 실패')
         return render(request, 'comments/index.html', {
             'error': 'AI 처리 중 오류가 발생했습니다. API 키/네트워크를 확인해 주세요.'})
 
-    analysis = CommentAnalysis.objects.create(                      # F602, F607
+    analysis = CommentAnalysis.objects.create(                     
         query=company, stock_name=stock_name, raw_comments=raw,
         cleaned_comments=cleaned, augmented_comments=augmented,
         iqr_info=iqr_info,
     )
     return render(request, 'comments/index.html', {
         'analysis': analysis,
-        'final': cleaned + augmented,       # 최종 결과 = 정제 + 증강
+        'final': cleaned + augmented,     
         'company': company,
     })
 
 
 @require_POST
-def summary(request, pk):                                           # F610
+def summary(request, pk):                                          
     analysis = get_object_or_404(CommentAnalysis, pk=pk)
     try:
         analysis.summary = llm.summarize(analysis.raw_comments)

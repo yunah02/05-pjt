@@ -6,10 +6,8 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
-# llm.py -> services -> comments -> pjt05(루트)의 .env
 load_dotenv(Path(__file__).resolve().parents[2] / '.env', encoding='utf-8-sig')
 
-# ⚠️ SSAFY GMS 안내 문서의 주소·모델명과 다르면 이 두 줄을 수정하세요
 GMS_URL = 'https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions'
 MODEL = 'gpt-5.4-nano'
 TIMEOUT = 90
@@ -56,7 +54,7 @@ def filter_inappropriate(comments):
         '번호(0부터 시작)만 JSON 배열로 알려줘. 없으면 []만 출력해.\n\n' + numbered
     )
     bad = _parse_json_array(_chat(prompt))
-    if bad is None:                      # 파싱 실패 시 원본 유지 (데이터 손실 방지)
+    if bad is None:                      
         return comments
     bad_set = {i for i in bad if isinstance(i, int)}
     return [c for i, c in enumerate(comments) if i not in bad_set]
@@ -68,8 +66,8 @@ def augment(comments, retries=2):
     if not comments:
         return []
 
-    results = {}                              # {원본 번호: 증강 문장}
-    pending = list(range(len(comments)))      # 아직 못 만든 번호
+    results = {}                            
+    pending = list(range(len(comments)))      
     last_raw = ''
 
     for _ in range(retries + 1):
@@ -110,4 +108,4 @@ def summarize(comments):
         '마크다운 서식(별표, 제목 기호, 목록 기호) 없이 일반 문장으로만 써.\n\n' + body
     )
     text = _chat(prompt)
-    return text.replace('**', '').strip()     # 모델이 서식을 넣어도 제거
+    return text.replace('**', '').strip()     
