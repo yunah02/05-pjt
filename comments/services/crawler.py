@@ -117,12 +117,6 @@ def _get_stock_code(driver):
     return m.group(1) if m else None
 
 
-def _get_stock_name(driver):
-    """제목 형식: '222,500원 -4.09% | 삼성전자' -> '삼성전자'"""
-    name = driver.title.split('|')[-1].strip()
-    return name or '알 수 없음'
-
-
 def _open_community(driver, wait):
     code = _get_stock_code(driver)
     if not code:
@@ -130,7 +124,8 @@ def _open_community(driver, wait):
     driver.get(f'{BASE_URL}stocks/{code}/community')
     time.sleep(3)
 
-def _collect_comments(driver, wait, target=TARGET_COUNT):
+def _collect_comments(driver, wait, target=TARGET_COUNT, notify=None):
+    """notify가 있으면 댓글을 하나 모을 때마다 notify('collect', n=개수)를 호출한다."""
     try:
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, POST_ITEM)))
     except TimeoutException:
@@ -154,6 +149,8 @@ def _collect_comments(driver, wait, target=TARGET_COUNT):
             if text:
                 seen_ids.add(post_id)
                 comments.append(text)
+                if notify:
+                    notify('collect', n=len(comments))
                 if len(comments) >= target:
                     return comments
 
@@ -182,15 +179,28 @@ def _get_stock_name(driver):
     return driver.title.split('|')[-1].strip()
 
 
-def crawl_comments(query, headless=True):
-    """(실제종목명, 댓글 리스트) 반환. 실패 시 CompanyNotFound / NoComments."""
+def crawl_comments(query, headless=True, on_progress=None):
+    """(실제종목명, 댓글 리스트) 반환. 실패 시 CompanyNotFound / NoComments.
+
+    on_progress(event, **data): 진행 상황 알림용 콜백 (실시간 스트리밍에 사용)
+      'driver'   브라우저 시작
+      'search'   검색어 입력
+      'selected' 최상단 종목 클릭 완료 (code=종목코드)
+      'stock'    종목명 확인 (name=종목명)
+      'collect'  댓글 수집 중 (n=지금까지 모은 개수)
+    """
+    notify = on_progress or (lambda *args, **kwargs: None)
+    notify('driver')
     driver = _build_driver(headless)
     try:
         wait = WebDriverWait(driver, WAIT_SEC)
+        notify('search')
         _search_top_company(driver, wait, query)
+        notify('selected', code=_get_stock_code(driver))
         _open_community(driver, wait)
-        stock_name = _get_stock_name(driver)  
-        comments = _collect_comments(driver, wait)
+        stock_name = _get_stock_name(driver)
+        notify('stock', name=stock_name)
+        comments = _collect_comments(driver, wait, notify=notify)
         if not comments:
             raise NoComments()
         return stock_name, comments

@@ -61,7 +61,13 @@ def filter_inappropriate(comments):
 
 
 def augment(comments, retries=2):
-    """각 댓글을 의미는 유지하되 확장. 번호로 매칭하므로 개수가 달라도 안전하다.
+    """증강 문장 리스트만 반환 (기존 호출부 호환용)."""
+    return [text for _, text in augment_indexed(comments, retries)]
+
+
+def augment_indexed(comments, retries=2):
+    """각 댓글을 의미는 유지하되 확장. [(원본 인덱스, 증강 문장), ...] 반환.
+    번호로 매칭하므로 개수가 달라도 안전하고, 어떤 정제 댓글의 증강인지 알 수 있다.
     실패한 항목만 최대 retries번 재시도하고, 끝내 못 만든 항목은 결과에서 제외한다."""
     if not comments:
         return []
@@ -94,7 +100,7 @@ def augment(comments, retries=2):
 
     if not results:
         raise ValueError(f'증강 결과를 파싱하지 못했습니다. 응답 일부: {last_raw[:300]!r}')
-    return [results[i] for i in sorted(results)]
+    return [(i, results[i]) for i in sorted(results)]
 
 
 def summarize(comments):
@@ -108,4 +114,4 @@ def summarize(comments):
         '마크다운 서식(별표, 제목 기호, 목록 기호) 없이 일반 문장으로만 써.\n\n' + body
     )
     text = _chat(prompt)
-    return text.replace('**', '').strip()     
+    return text.replace('**', '').strip()
